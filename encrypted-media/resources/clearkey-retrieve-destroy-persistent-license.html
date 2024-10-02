@@ -7,7 +7,6 @@
 
     <!-- Helper scripts for Encrypted Media Extensions tests  -->
     <script src=/encrypted-media/util/utils.js></script>
-    <script src=/encrypted-media/util/fetch.js></script>
     <script src=/encrypted-media/util/utf8.js></script>
     <script src=/encrypted-media/util/testmediasource.js></script>
 
@@ -40,7 +39,7 @@
             config.messagehandler = (new MessageHandler( 'org.w3.clearkey')).messagehandler;
 
         function onComplete() {
-            window.opener.postMessage(assertions, '*');
+            window.opener.postMessage({ testResult: assertions }, '*');
         }
 
         function onFailure(error) {

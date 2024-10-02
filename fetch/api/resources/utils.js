@@ -1,11 +1,4 @@
-var inWorker = false;
 var RESOURCES_DIR = "../resources/";
-
-try {
-  inWorker = !(self instanceof Window);
-} catch (e) {
-  inWorker = true;
-}
 
 function dirname(path) {
     return path.replace(/\/[^\/]*$/, '/')
@@ -51,18 +44,26 @@ function stringToArray(str) {
   return array;
 }
 
+function encode_utf8(str)
+{
+    if (self.TextEncoder)
+        return (new TextEncoder).encode(str);
+    return stringToArray(unescape(encodeURIComponent(str)));
+}
+
 function validateBufferFromString(buffer, expectedValue, message)
 {
   return assert_array_equals(new Uint8Array(buffer !== undefined ? buffer : []), stringToArray(expectedValue), message);
 }
 
 function validateStreamFromString(reader, expectedValue, retrievedArrayBuffer) {
-  return reader.read().then(function(data) {
+  // Passing Uint8Array for byte streams; non-byte streams will simply ignore it
+  return reader.read(new Uint8Array(64)).then(function(data) {
     if (!data.done) {
       assert_true(data.value instanceof Uint8Array, "Fetch ReadableStream chunks should be Uint8Array");
       var newBuffer;
       if (retrievedArrayBuffer) {
-        newBuffer =  new ArrayBuffer(data.value.length + retrievedArrayBuffer.length);
+        newBuffer =  new Uint8Array(data.value.length + retrievedArrayBuffer.length);
         newBuffer.set(retrievedArrayBuffer, 0);
         newBuffer.set(data.value, retrievedArrayBuffer.length);
       } else {
@@ -74,10 +75,46 @@ function validateStreamFromString(reader, expectedValue, retrievedArrayBuffer) {
   });
 }
 
+function validateStreamFromPartialString(reader, expectedValue, retrievedArrayBuffer) {
+  // Passing Uint8Array for byte streams; non-byte streams will simply ignore it
+  return reader.read(new Uint8Array(64)).then(function(data) {
+    if (!data.done) {
+      assert_true(data.value instanceof Uint8Array, "Fetch ReadableStream chunks should be Uint8Array");
+      var newBuffer;
+      if (retrievedArrayBuffer) {
+        newBuffer =  new Uint8Array(data.value.length + retrievedArrayBuffer.length);
+        newBuffer.set(retrievedArrayBuffer, 0);
+        newBuffer.set(data.value, retrievedArrayBuffer.length);
+      } else {
+        newBuffer = data.value;
+      }
+      return validateStreamFromPartialString(reader, expectedValue, newBuffer);
+    }
+
+    var string = new TextDecoder("utf-8").decode(retrievedArrayBuffer);
+    return assert_true(string.search(expectedValue) != -1, "Retrieve and verify stream");
+  });
+}
+
 // From streams tests
 function delay(milliseconds)
 {
   return new Promise(function(resolve) {
     step_timeout(resolve, milliseconds);
   });
+}
+
+function requestForbiddenHeaders(desc, forbiddenHeaders) {
+  var url = RESOURCES_DIR + "inspect-headers.py";
+  var requestInit = {"headers": forbiddenHeaders}
+  var urlParameters = "?headers=" + Object.keys(forbiddenHeaders).join("|");
+
+  promise_test(function(test){
+    return fetch(url + urlParameters, requestInit).then(function(resp) {
+      assert_equals(resp.status, 200, "HTTP status is 200");
+      assert_equals(resp.type , "basic", "Response's type is basic");
+      for (var header in forbiddenHeaders)
+        assert_not_equals(resp.headers.get("x-request-" + header), forbiddenHeaders[header], header + " does not have the value we defined");
+    });
+  }, desc);
 }

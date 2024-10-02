@@ -2,7 +2,6 @@
 <html>
 <head>
 <title>Annotation implements optional keys and meets optional key value constraints</title>
-<link rel="stylesheet" href="/resources/testharness.css">
 <script src="/resources/testharness.js"></script>
 <script src="/resources/testharnessreport.js"></script>
 <script src="/annotation-model/scripts/ajv.min.js"></script>
@@ -12,12 +11,13 @@
 setup({explicit_timeout: true, explicit_done: true });
 
 var theDefinitions=[
-  "definitions/specificResource.json",
   "definitions/choiceSet.json",
+  "definitions/id.json",
   "definitions/bodyTarget.json",
   "definitions/annotations.json",
+  "definitions/specificResource.json",
   "definitions/otherProperties.json",
-  "definitions/id.json"
+  "definitions/collections.json"
 ];
 
 var theTestFile="annotationOptionals.test";

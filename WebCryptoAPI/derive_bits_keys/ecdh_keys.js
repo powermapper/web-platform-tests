@@ -1,5 +1,5 @@
 
-function run_test() {
+function define_tests() {
     // May want to test prefixed implementations.
     var subtle = self.crypto.subtle;
 
@@ -27,7 +27,7 @@ function run_test() {
         "P-384": new Uint8Array([224, 189, 107, 206, 10, 239, 140, 164, 136, 56, 166, 226, 252, 197, 126, 103, 185, 197, 232, 134, 12, 95, 11, 233, 218, 190, 197, 62, 69, 78, 24, 160, 161, 116, 196, 136, 136, 162, 100, 136, 17, 91, 45, 201, 241, 223, 165, 45])
     };
 
-    importKeys(pkcs8, spki, sizes)
+    return importKeys(pkcs8, spki, sizes)
     .then(function(results) {
         publicKeys = results.publicKeys;
         privateKeys = results.privateKeys;
@@ -143,7 +143,7 @@ function run_test() {
             promise_test(function(test) {
                 return subtle.generateKey({name: "HMAC", hash: "SHA-256", length: 256}, true, ["sign", "verify"])
                 .then(function(secretKey) {
-                    subtle.deriveKey({name: "ECDH", public: secretKey}, privateKeys[namedCurve], {name: "AES-CBC", length: 256}, true, ["sign", "verify"])
+                    return subtle.deriveKey({name: "ECDH", public: secretKey}, privateKeys[namedCurve], {name: "AES-CBC", length: 256}, true, ["sign", "verify"])
                     .then(function(key) {return crypto.subtle.exportKey("raw", key);})
                     .then(function(exportedKey) {
                         assert_unreached("deriveKey succeeded but should have failed with InvalidAccessError");
@@ -153,7 +153,6 @@ function run_test() {
                 });
             }, namedCurve + " public property value is a secret key");
         });
-        done();
     });
 
     function importKeys(pkcs8, spki, sizes) {
@@ -169,6 +168,8 @@ function run_test() {
                                             false, ["deriveBits", "deriveKey"])
                             .then(function(key) {
                                 privateKeys[namedCurve] = key;
+                            }, function (err) {
+                                privateKeys[namedCurve] = null;
                             });
             promises.push(operation);
         });
@@ -178,6 +179,8 @@ function run_test() {
                                             false, ["deriveBits"])
                             .then(function(key) {
                                 noDeriveKeyKeys[namedCurve] = key;
+                            }, function (err) {
+                                noDeriveKeyKeys[namedCurve] = null;
                             });
             promises.push(operation);
         });
@@ -187,6 +190,8 @@ function run_test() {
                                             false, [])
                             .then(function(key) {
                                 publicKeys[namedCurve] = key;
+                            }, function (err) {
+                                publicKeys[namedCurve] = null;
                             });
             promises.push(operation);
         });
@@ -194,6 +199,8 @@ function run_test() {
             var operation = subtle.generateKey({name: "ECDSA", namedCurve: namedCurve}, false, ["sign", "verify"])
                             .then(function(keyPair) {
                                 ecdsaKeyPairs[namedCurve] = keyPair;
+                            }, function (err) {
+                                ecdsaKeyPairs[namedCurve] = null;
                             });
             promises.push(operation);
         });

@@ -87,6 +87,90 @@ ReflectionTests.parseInt = function(input) {
     return sign * value;
 };
 
+/**
+ * The "rules for parsing floating-point number values" from the HTML spec.
+ * Returns false on error.
+ */
+ReflectionTests.parseFloat = function(input) {
+    var position = 0;
+    var value = 1;
+    var divisor = 1;
+    var exponent = 1;
+    // Skip whitespace
+    while (input.length > position && /^[ \t\n\f\r]$/.test(input[position])) {
+        position++;
+    }
+    if (position >= input.length) {
+        return false;
+    }
+    if (input[position] == "-") {
+        value = -1;
+        divisor = -1;
+        position++;
+    } else if (input[position] == "+") {
+        position++;
+    }
+    if (position >= input.length) {
+        return false;
+    }
+    if (input[position] == "." && position+1 < input.length && /^[0-9]$/.test(input[position+1])) {
+        value = 0;
+        // Use "else" branches rather than "jump to label fraction"
+    } else if (!/^[0-9]$/.test(input[position])) {
+        return false;
+    } else {
+        var val = 0;
+        while (input.length > position && /^[0-9]$/.test(input[position])) {
+            val *= 10;
+            // Don't use parseInt even for single-digit strings . . .
+            val += input.charCodeAt(position) - "0".charCodeAt(0);
+            position++;
+        }
+        value *= val;
+    }
+    // Use nested "if" tests rather than "jump to label conversion" or "skip"
+    // Fraction:
+    if (input.length > position && input[position] == ".") {
+        position++;
+        while (input.length > position && /^[0-9]$/.test(input[position])) {
+            divisor *= 10;
+            // Don't use parseInt even for single-digit strings . . .
+            value += (input.charCodeAt(position) - "0".charCodeAt(0)) / divisor;
+            position++;
+        }
+    }
+    if (input.length > position && (input[position] == "e" || input[position] == "E")) {
+        position++;
+        if (input.length > position) {
+            if (input[position] == "-") {
+                exponent = -1;
+                position++;
+            } else if (input[position] == "+") {
+                position++;
+            }
+            if (input.length > position && /^[0-9]$/.test(input[position])) {
+                var exp = 0;
+                do {
+                    exp *= 10;
+                    // Don't use parseInt even for single-digit strings . . .
+                    exp += input.charCodeAt(position) - "0".charCodeAt(0);
+                    position++;
+                } while (input.length > position && /^[0-9]$/.test(input[position]));
+                exponent *= exp;
+                value *= Math.pow(10, exponent);
+            }
+        }
+    }
+    // Conversion:
+    if (!Number.isFinite(value)) {
+      return false;
+    }
+    if (value === 0) {
+        return 0;
+    }
+    return value;
+}
+
 // Used in initializing typeMap
 var binaryString = "\x00\x01\x02\x03\x04\x05\x06\x07 "
     + "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f "
@@ -145,7 +229,7 @@ ReflectionTests.typeMap = {
     "string": {
         "jsType": "string",
         "defaultVal": "",
-        "domTests": ["", " " + binaryString + " foo ", undefined, 7, 1.5, true,
+        "domTests": ["", " " + binaryString + " foo ", undefined, 7, 1.5, "5%", "+100", ".5", true,
                      false, {"test": 6}, NaN, +Infinity, -Infinity, "\0", null,
                      {"toString":function(){return "test-toString";}},
                      {"valueOf":function(){return "test-valueOf";}, toString:null}
@@ -168,7 +252,7 @@ ReflectionTests.typeMap = {
         "jsType": "string",
         "defaultVal": "",
         "domTests": ["", " foo ", "http://site.example/",
-                     "//site.example/path???@#l", binaryString, undefined, 7, 1.5, true,
+                     "//site.example/path???@#l", binaryString, undefined, 7, 1.5, "5%", "+100", ".5", true,
                      false, {"test": 6}, NaN, +Infinity, -Infinity, "\0", null,
                      {"toString":function(){return "test-toString";}},
                      {"valueOf":function(){return "test-valueOf";}, toString:null}],
@@ -233,7 +317,7 @@ ReflectionTests.typeMap = {
     "enum": {
         "jsType": "string",
         "defaultVal": "",
-        "domTests": ["", " " + binaryString + " foo ", undefined, 7, 1.5, true,
+        "domTests": ["", " " + binaryString + " foo ", undefined, 7, 1.5, "5%", "+100", ".5", true,
                  false, {"test": 6}, NaN, +Infinity, -Infinity, "\0", null,
                  {"toString":function(){return "test-toString";}},
                  {"valueOf":function(){return "test-valueOf";}, toString:null}]
@@ -249,7 +333,7 @@ ReflectionTests.typeMap = {
     "boolean": {
         "jsType": "boolean",
         "defaultVal": false,
-        "domTests": ["", " foo ", undefined, null, 7, 1.5, true, false,
+        "domTests": ["", " foo ", undefined, null, 7, 1.5, "5%", "+100", ".5", true, false,
                      {"test": 6}, NaN, +Infinity, -Infinity, "\0",
                      {"toString":function(){return "test-toString";}},
                      {"valueOf":function(){return "test-valueOf";}, toString:null}],
@@ -273,19 +357,19 @@ ReflectionTests.typeMap = {
         "jsType": "number",
         "defaultVal": 0,
         "domTests": [-36, -1, 0, 1, maxInt, minInt, maxInt + 1, minInt - 1,
-                     maxUnsigned, maxUnsigned + 1, "", "-1", "-0", "0", "1",
+                     maxUnsigned, maxUnsigned + 1, "", "-", "+", "-1", "-0", "0", "1",
                      " " + binaryString + " foo ",
                      // Test various different whitespace. Only 20, 9, A, C,
                      // and D are whitespace.
                      "\u00097", "\u000B7", "\u000C7", "\u00207", "\u00A07", "\uFEFF7",
                      "\u000A7", "\u000D7", "\u20287", "\u20297", "\u16807", "\u180E7",
                      "\u20007", "\u20017", "\u20027", "\u20037", "\u20047", "\u20057",
-                     "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7",
-                     "\u30007",
-                     undefined, 1.5, true, false, {"test": 6}, NaN, +Infinity,
+                     "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7", "\u30007",
+                     "\t\u000B7", "\n\u000B7","\f\u000B7", "\r\u000B7", "\x20\u000B7", "7\u000B",
+                     undefined, 1.5, "5%", "+100", ".5", true, false, {"test": 6}, NaN, +Infinity,
                      -Infinity, "\0",
                      {toString:function() {return 2;}, valueOf: null},
-                     {valueOf:function() {return 3;}}],
+                     {valueOf:function() {return 3;}, toString: null}],
         "domExpected": function(val) {
             var parsed = ReflectionTests.parseInt(String(val));
             if (parsed === false || parsed > maxInt || parsed < minInt) {
@@ -314,17 +398,17 @@ ReflectionTests.typeMap = {
         "jsType": "number",
         "defaultVal": -1,
         "domTests": [minInt - 1, minInt, -36, -1, -0, 0, 1, maxInt, maxInt + 1,
-                     maxUnsigned, maxUnsigned + 1, "", "-1", "-0", "0", "1",
+                     maxUnsigned, maxUnsigned + 1, "", "-", "+", "-1", "-0", "0", "1",
                      " " + binaryString + " foo ",
                      "\u00097", "\u000B7", "\u000C7", "\u00207", "\u00A07", "\uFEFF7",
                      "\u000A7", "\u000D7", "\u20287", "\u20297", "\u16807", "\u180E7",
                      "\u20007", "\u20017", "\u20027", "\u20037", "\u20047", "\u20057",
-                     "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7",
-                     "\u30007",
-                     undefined, 1.5, true, false, {"test": 6}, NaN, +Infinity,
+                     "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7", "\u30007",
+                     "\t\u000B7", "\n\u000B7","\f\u000B7", "\r\u000B7", "\x20\u000B7", "7\u000B",
+                     undefined, 1.5, "5%", "+100", ".5", true, false, {"test": 6}, NaN, +Infinity,
                      -Infinity, "\0",
                      {toString:function() {return 2;}, valueOf: null},
-                     {valueOf:function() {return 3;}}],
+                     {valueOf:function() {return 3;}, toString: null}],
         "domExpected": function(val) {
             var parsed = ReflectionTests.parseNonneg(String(val));
             if (parsed === false || parsed > maxInt || parsed < minInt) {
@@ -351,16 +435,16 @@ ReflectionTests.typeMap = {
         "jsType": "number",
         "defaultVal": 0,
         "domTests": [minInt - 1, minInt, -36,  -1,   0, 1, 257, maxInt,
-                     maxInt + 1, maxUnsigned, maxUnsigned + 1, "", "-1", "-0", "0", "1",
+                     maxInt + 1, maxUnsigned, maxUnsigned + 1, "", "-", "+", "-1", "-0", "0", "1",
                      "\u00097", "\u000B7", "\u000C7", "\u00207", "\u00A07", "\uFEFF7",
                      "\u000A7", "\u000D7", "\u20287", "\u20297", "\u16807", "\u180E7",
                      "\u20007", "\u20017", "\u20027", "\u20037", "\u20047", "\u20057",
-                     "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7",
-                     "\u30007",
-                     " " + binaryString + " foo ", undefined, 1.5, true, false,
+                     "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7", "\u30007",
+                     "\t\u000B7", "\n\u000B7","\f\u000B7", "\r\u000B7", "\x20\u000B7", "7\u000B",
+                     " " + binaryString + " foo ", undefined, 1.5, "5%", "+100", ".5", true, false,
                      {"test": 6}, NaN, +Infinity, -Infinity, "\0",
                      {toString:function() {return 2;}, valueOf: null},
-                     {valueOf:function() {return 3;}}],
+                     {valueOf:function() {return 3;}, toString: null}],
         "domExpected": function(val) {
             var parsed = ReflectionTests.parseNonneg(String(val));
             // Note maxInt, not maxUnsigned.
@@ -393,16 +477,16 @@ ReflectionTests.typeMap = {
         "jsType": "number",
         "defaultVal": 1,
         "domTests": [minInt - 1, minInt, -36,  -1,   0,    1, maxInt,
-                     maxInt + 1, maxUnsigned, maxUnsigned + 1, "", "-1", "-0", "0", "1",
+                     maxInt + 1, maxUnsigned, maxUnsigned + 1, "", "-", "+", "-1", "-0", "0", "1",
                      "\u00097", "\u000B7", "\u000C7", "\u00207", "\u00A07", "\uFEFF7",
                      "\u000A7", "\u000D7", "\u20287", "\u20297", "\u16807", "\u180E7",
                      "\u20007", "\u20017", "\u20027", "\u20037", "\u20047", "\u20057",
-                     "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7",
-                     "\u30007",
-                     " " + binaryString + " foo ", undefined, 1.5, true, false,
+                     "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7", "\u30007",
+                     "\t\u000B7", "\n\u000B7","\f\u000B7", "\r\u000B7", "\x20\u000B7", "7\u000B",
+                     " " + binaryString + " foo ", undefined, 1.5, "5%", "+100", ".5", true, false,
                      {"test": 6}, NaN, +Infinity, -Infinity, "\0",
                      {toString:function() {return 2;}, valueOf: null},
-                     {valueOf:function() {return 3;}}],
+                     {valueOf:function() {return 3;}, toString: null}],
         "domExpected": function(val) {
             var parsed = ReflectionTests.parseNonneg(String(val));
             // Note maxInt, not maxUnsigned.
@@ -433,16 +517,16 @@ ReflectionTests.typeMap = {
     "limited unsigned long with fallback": {
         "jsType": "number",
             "domTests": [minInt - 1, minInt, -36,  -1,   0,    1, maxInt,
-                         maxInt + 1, maxUnsigned, maxUnsigned + 1, "", "-1", "-0", "0", "1",
+                         maxInt + 1, maxUnsigned, maxUnsigned + 1, "", "-", "+", "-1", "-0", "0", "1",
                          "\u00097", "\u000B7", "\u000C7", "\u00207", "\u00A07", "\uFEFF7",
                          "\u000A7", "\u000D7", "\u20287", "\u20297", "\u16807", "\u180E7",
                          "\u20007", "\u20017", "\u20027", "\u20037", "\u20047", "\u20057",
-                         "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7",
-                         "\u30007",
-                         " " + binaryString + " foo ", undefined, 1.5, true, false,
+                         "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7", "\u30007",
+                         "\t\u000B7", "\n\u000B7","\f\u000B7", "\r\u000B7", "\x20\u000B7", "7\u000B",
+                         " " + binaryString + " foo ", undefined, 1.5, "5%", "+100", ".5", true, false,
                          {"test": 6}, NaN, +Infinity, -Infinity, "\0",
                          {toString:function() {return 2;}, valueOf: null},
-                         {valueOf:function() {return 3;}}],
+                         {valueOf:function() {return 3;}, toString: null}],
             "domExpected": function(val) {
                 var parsed = ReflectionTests.parseNonneg(String(val));
                 // Note maxInt, not maxUnsigned.
@@ -453,6 +537,37 @@ ReflectionTests.typeMap = {
             },
             "idlTests":       [0, 1, maxInt, maxInt + 1, maxUnsigned],
             "idlDomExpected": [null, 1, maxInt, null, null]
+    },
+    /**
+     * "If a reflecting IDL attribute has an unsigned integer type (unsigned
+     * long) that is clamped to the range [min, max], then on getting, the
+     * content attribute must first be parsed according to the rules for
+     * parsing non-negative integers, and if that is successful, and the value
+     * is between min and max inclusive, the resulting value must be returned.
+     * If it fails, the default value must be returned. If it succeeds but the
+     * value is less than min, min must be returned. If it succeeds but the
+     * value is greater than max, max must be returned. On setting, it behaves
+     * the same as a regular reflected unsigned integer."
+     *
+     * The data object passed to reflects must contain the keys defaultVal,
+     * min, and max.  As with enum, domExpected is generated later once we have
+     * access to the min and max.
+     */
+    "clamped unsigned long": {
+        "jsType": "number",
+        "domTests": [minInt - 1, minInt, -36,  -1,   0,    1, maxInt,
+                     maxInt + 1, maxUnsigned, maxUnsigned + 1, "", "-", "+", "-1", "-0", "0", "1",
+                     "\u00097", "\u000B7", "\u000C7", "\u00207", "\u00A07", "\uFEFF7",
+                     "\u000A7", "\u000D7", "\u20287", "\u20297", "\u16807", "\u180E7",
+                     "\u20007", "\u20017", "\u20027", "\u20037", "\u20047", "\u20057",
+                     "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7", "\u30007",
+                     "\t\u000B7", "\n\u000B7","\f\u000B7", "\r\u000B7", "\x20\u000B7", "7\u000B",
+                     " " + binaryString + " foo ", undefined, 1.5, "5%", "+100", ".5", true, false,
+                     {"test": 6}, NaN, +Infinity, -Infinity, "\0",
+                     {toString:function() {return 2;}, valueOf: null},
+                     {valueOf:function() {return 3;}, toString: null}],
+        "idlTests": [0, 1, 257, maxInt, "-0", maxInt + 1, maxUnsigned],
+        "idlDomExpected": [0, 1, 257, maxInt, 0, null, null],
     },
     /**
      * "If a reflecting IDL attribute is a floating point number type (double),
@@ -470,45 +585,84 @@ ReflectionTests.typeMap = {
      * "Except where otherwise specified, if an IDL attribute that is a
      * floating point number type (double) is assigned an Infinity or
      * Not-a-Number (NaN) value, a NOT_SUPPORTED_ERR exception must be raised."
-     *
-     * TODO: Implement the actual algorithm so we can run lots more tests.  For
-     * now we're stuck with manually setting up expected values.  Of course,
-     * a lot of care has to be taken in checking equality for floats . . .
-     * maybe we should have some tolerance for comparing them.  I'm not even
-     * sure whether setting the content attribute to 0 should return 0.0 or
-     * -0.0 (the former, I hope).
      */
     "double": {
         "jsType": "number",
         "defaultVal": 0.0,
         "domTests": [minInt - 1, minInt, -36, -1, 0, 1, maxInt,
-            maxInt + 1, maxUnsigned, maxUnsigned + 1, "",
+            maxInt + 1, maxUnsigned, maxUnsigned + 1, "", "-", "+",
             "\u00097", "\u000B7", "\u000C7", "\u00207", "\u00A07", "\uFEFF7",
             "\u000A7", "\u000D7", "\u20287", "\u20297", "\u16807", "\u180E7",
             "\u20007", "\u20017", "\u20027", "\u20037", "\u20047", "\u20057",
-            "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7",
-            "\u30007",
-            " " + binaryString + " foo ", undefined, 1.5, true, false,
+            "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7", "\u30007",
+            "\t\u000B7", "\n\u000B7","\f\u000B7", "\r\u000B7", "\x20\u000B7", "7\u000B",
+            " " + binaryString + " foo ", undefined, 1.5, "5%", "+100", ".5", true, false,
+            "1.", "1e2", "1e+2", "1e-2", "1E2", "1E+2", "1E-2", "1.e2", "1.0e2",
+            "1. 1", "1 .1", "1. e2", "1 .e2", "1 e2", "1e 2", "1e -2", "1e- 2",
+            "1.8e308", "-1.8e308",
             {"test": 6}, NaN, +Infinity, -Infinity, "\0",
             {toString:function() {return 2;}, valueOf: null},
-            {valueOf:function() {return 3;}}],
-        "domExpected": [minInt - 1, minInt, -36, -1, 0, 1, maxInt,
-                        maxInt + 1, maxUnsigned, maxUnsigned + 1, null,
-                        // Leading whitespace tests
-                        7, null, 7, 7, null, null,
-                        7, 7, null, null, null, null,
-                        null, null, null, null, null, null,
-                        null, null, null, null, null, null,
-                        null,
-                        // End leading whitespace tests
-                        null, null, 1.5, null, null,
-                        null, null, null, null, null,
-                        2, 3],
-        // I checked that ES ToString is well-defined for all of these (I
-        // think).  Yes, String(-0) == "0".
-        "idlTests":       [ -10000000000,   -1,  -0,   0,   1,   10000000000],
-        "idlDomExpected": ["-10000000000", "-1", "0", "0", "1", "10000000000"],
-        "idlIdlExpected": [ -10000000000,   -1,  -0,   0,   1,   10000000000]
+            {valueOf:function() {return 3;}, toString: null}],
+        "domExpected": function (val) {
+            var parsed = ReflectionTests.parseFloat(String(val));
+            if (parsed === false) {
+                return null;
+            }
+            return parsed;
+        },
+        "idlTests": [ -10000000000, -1, -0, 0, 1, 10000000000,
+            1e-10, 1e-4, 1.5, 1e25 ],
+        "idlIdlExpected": function (val) {
+            // This is a bit heavy-weight but hopefully will give values
+            // that compare "better" (without introducing some tolerance)
+            // when the test cases are expanded with more values.
+            return ReflectionTests.parseFloat(String(val));
+        }
+    },
+    /**
+     * Reflected IDL attribute of type double, limited to only positive values,
+     * are similar to the previous case with the following exceptions:
+     *
+     *  - on getting, if the parsed value is not greater than 0, then return
+     *    the default value
+     *  - on setting, if the value is not greater than 0, then return (leaving)
+     *    the attribute to its previous value.
+     */
+    "limited double": {
+        "jsType": "number",
+        "defaultVal": 0.0,
+        "domTests": [minInt - 1, minInt, -36, -1, 0, 1, maxInt,
+            maxInt + 1, maxUnsigned, maxUnsigned + 1, "", "-", "+",
+            "\u00097", "\u000B7", "\u000C7", "\u00207", "\u00A07", "\uFEFF7",
+            "\u000A7", "\u000D7", "\u20287", "\u20297", "\u16807", "\u180E7",
+            "\u20007", "\u20017", "\u20027", "\u20037", "\u20047", "\u20057",
+            "\u20067", "\u20077", "\u20087", "\u20097", "\u200A7", "\u202F7", "\u30007",
+            "\t\u000B7", "\n\u000B7","\f\u000B7", "\r\u000B7", "\x20\u000B7", "7\u000B",
+            " " + binaryString + " foo ", undefined, 1.5, "5%", "+100", ".5", true, false,
+            "1.", "1e2", "1e+2", "1e-2", "1E2", "1E+2", "1E-2", "1.e2", "1.0e2",
+            "1. 1", "1 .1", "1. e2", "1 .e2", "1 e2", "1e 2", "1e -2", "1e- 2",
+            "1.8e308", "-1.8e308",
+            {"test": 6}, NaN, +Infinity, -Infinity, "\0",
+            {toString:function() {return 2;}, valueOf: null},
+            {valueOf:function() {return 3;}, toString: null}],
+        "domExpected": function (val) {
+            var parsed = ReflectionTests.parseFloat(String(val));
+            if (parsed === false || parsed <= 0) {
+                return null;
+            }
+            return parsed;
+        },
+        "idlTests": [ -10000000000, -1, -0, 0, 1, 10000000000,
+            1e-10, 1e-4, 1.5, 1e25 ],
+        "idlIdlExpected": function (val) {
+            // Non-positive values are special-cased below, as they
+            // should be ignored, leaving the current value unchanged
+
+            // This is a bit heavy-weight but hopefully will give values
+            // that compare "better" (without introducing some tolerance)
+            // when the test cases are expanded with more values.
+            return ReflectionTests.parseFloat(String(val));
+        }
     }
 };
 
@@ -567,15 +721,6 @@ ReflectionTests.reflects = function(data, idlName, idlObj, domName, domObj) {
     // probably safe enough.  Just don't read stuff that will change.
     ReflectionHarness.currentTestInfo = {data: data, idlName: idlName, idlObj: idlObj, domName: domName, domObj: domObj};
 
-    ReflectionHarness.testWrapper(function() {
-        ReflectionTests.doReflects(data, idlName, idlObj, domName, domObj);
-    });
-};
-
-/**
- * Actual implementation of the above.
- */
-ReflectionTests.doReflects = function(data, idlName, idlObj, domName, domObj) {
     // If we don't recognize the type, testing is impossible.
     if (this.typeMap[data.type] === undefined) {
         if (unimplemented.indexOf(data.type) == -1) {
@@ -591,9 +736,15 @@ ReflectionTests.doReflects = function(data, idlName, idlObj, domName, domObj) {
     }
 
     // Test that typeof idlObj[idlName] is correct.  If not, further tests are
-    // probably pointless, so bail out.
-    var isDefaultValueNull = data.isNullable && data.defaultVal === null;
-    if (!ReflectionHarness.test(typeof idlObj[idlName], isDefaultValueNull ? "object" : typeInfo.jsType, "typeof IDL attribute")) {
+    // probably pointless, so bail out if we're not running conformance tests.
+    var expectedType = data.isNullable && data.defaultVal === null ? "object"
+                                                                   : typeInfo.jsType;
+    ReflectionHarness.test(function() {
+        ReflectionHarness.assertEquals(typeof idlObj[idlName], expectedType);
+    }, "typeof IDL attribute");
+
+    if (!ReflectionHarness.conformanceTesting &&
+        typeof idlObj[idlName] !== expectedType) {
         return;
     }
 
@@ -602,8 +753,16 @@ ReflectionTests.doReflects = function(data, idlName, idlObj, domName, domObj) {
     if (defaultVal === undefined) {
         defaultVal = typeInfo.defaultVal;
     }
-    if (defaultVal !== null || data.isNullable) {
-        ReflectionHarness.test(idlObj[idlName], defaultVal, "IDL get with DOM attribute unset");
+    if ((domObj.localName === "form" && domName === "action") ||
+        (["button", "input"].includes(domObj.localName) &&
+         domName === "formAction")) {
+        // Hard-coded special case
+        defaultVal = domObj.ownerDocument.URL;
+    }
+    if (!data.customGetter && (defaultVal !== null || data.isNullable)) {
+        ReflectionHarness.test(function() {
+            ReflectionHarness.assertEquals(idlObj[idlName], defaultVal);
+        }, "IDL get with DOM attribute unset");
     }
 
     var domTests = typeInfo.domTests.slice(0);
@@ -633,8 +792,12 @@ ReflectionTests.doReflects = function(data, idlName, idlObj, domName, domObj) {
             }
 
             if (data.keywords[i].length > 1) {
-                domTests.push(data.keywords[i].slice(1));
-                idlTests.push(data.keywords[i].slice(1));
+                var sliced = data.keywords[i].slice(1);
+                // If slicing a value yields another valid value, then skip it since it results in duplicate tests.
+                if (data.keywords.indexOf(sliced) == -1) {
+                    domTests.push(sliced);
+                    idlTests.push(sliced);
+                }
             }
 
             if (data.keywords[i] != data.keywords[i].toLowerCase()) {
@@ -644,6 +807,14 @@ ReflectionTests.doReflects = function(data, idlName, idlObj, domName, domObj) {
             if (data.keywords[i] != data.keywords[i].toUpperCase()) {
                 domTests.push(data.keywords[i].toUpperCase());
                 idlTests.push(data.keywords[i].toUpperCase());
+            }
+            if (data.keywords[i].indexOf("k") != -1) {
+                domTests.push(data.keywords[i].replace(/k/g, "\u212A"));
+                idlTests.push(data.keywords[i].replace(/k/g, "\u212A"));
+            }
+            if (data.keywords[i].indexOf("s") != -1) {
+                domTests.push(data.keywords[i].replace(/s/g, "\u017F"));
+                idlTests.push(data.keywords[i].replace(/s/g, "\u017F"));
             }
         }
 
@@ -682,6 +853,54 @@ ReflectionTests.doReflects = function(data, idlName, idlObj, domName, domObj) {
             }
         }
         break;
+
+        case "clamped unsigned long":
+        [data.min - 1, data.min, data.max, data.max + 1].forEach(function(val) {
+          if (domTests.indexOf(val) == -1) {
+            domTests.push(val);
+          }
+          if (idlTests.indexOf(val) == -1 && 0 <= val && val <= maxUnsigned) {
+            idlTests.push(val);
+            if (typeof val != "number") {
+              val = ReflectionTests.parseNonneg(val);
+            }
+            idlDomExpected.push(val > maxInt ? null : val);
+          }
+        });
+
+        // Rewrite expected values
+        domExpected = domTests.map(function(val) {
+            var parsed = ReflectionTests.parseNonneg(String(val));
+            if (parsed === false) {
+                return defaultVal;
+            }
+            if (parsed < data.min) {
+              return data.min;
+            }
+            if (parsed > data.max) {
+              return data.max;
+            }
+            return parsed;
+        });
+        idlIdlExpected = idlTests.map(function(val) {
+            if (typeof val != "number") {
+              val = ReflectionTests.parseNonneg(val);
+            }
+            if (val < 0 || val > maxUnsigned) {
+              throw "Test bug: val should be an unsigned long";
+            }
+            if (val > maxInt) {
+              return defaultVal;
+            }
+            if (val < data.min) {
+              return data.min;
+            }
+            if (val > data.max) {
+              return data.max;
+            }
+            return val;
+        });
+        break;
     }
     if (domObj.tagName.toLowerCase() == "canvas" && (domName == "width" || domName == "height")) {
         // Opera tries to allocate a canvas with the given width and height, so
@@ -694,62 +913,84 @@ ReflectionTests.doReflects = function(data, idlName, idlObj, domName, domObj) {
         idlDomExpected = idlDomExpected.filter(function(element, index, array) { return idlIdlExpected[index] < 1000; });
         idlIdlExpected = idlIdlExpected.filter(function(element, index, array) { return idlIdlExpected[index] < 1000; });
     }
-
-    if (!data.customGetter) {
+    if ((domObj.localName === "form" && domName === "action") ||
+        (["button", "input"].includes(domObj.localName) &&
+         domName === "formAction")) {
+        // Hard-coded special case
         for (var i = 0; i < domTests.length; i++) {
-            if (domExpected[i] === null && !data.isNullable) {
-                // If you follow all the complicated logic here, you'll find that
-                // this will only happen if there's no expected value at all (like
-                // for tabIndex, where the default is too complicated).  So skip
-                // the test.
-                continue;
+            if (domTests[i] === "") {
+                domExpected[i] = domObj.ownerDocument.URL;
             }
-            try {
-                domObj.setAttribute(domName, domTests[i]);
-                ReflectionHarness.test(domObj.getAttribute(domName), String(domTests[i]), "setAttribute() to " + ReflectionHarness.stringRep(domTests[i]) + " followed by getAttribute()");
-                ReflectionHarness.test(idlObj[idlName], domExpected[i], "setAttribute() to " + ReflectionHarness.stringRep(domTests[i]) + " followed by IDL get");
-                if (ReflectionHarness.catchUnexpectedExceptions) {
-                    ReflectionHarness.success();
-                }
-            } catch (err) {
-                if (ReflectionHarness.catchUnexpectedExceptions) {
-                    ReflectionHarness.failure("Exception thrown during tests with setAttribute() to " + ReflectionHarness.stringRep(domTests[i]));
-                } else {
-                    throw err;
-                }
+        }
+        for (var i = 0; i < idlTests.length; i++) {
+            if (idlTests[i] === "") {
+                idlIdlExpected[i] = domObj.ownerDocument.URL;
             }
         }
     }
+    if (data.customGetter) {
+        // These are reflected only on setting, not getting
+        domTests = [];
+        domExpected = [];
+        idlIdlExpected = idlIdlExpected.map(() => null);
+    }
+
+    for (var i = 0; i < domTests.length; i++) {
+        if (domExpected[i] === null && !data.isNullable) {
+            // If you follow all the complicated logic here, you'll find that
+            // this will only happen if there's no expected value at all (like
+            // for tabIndex, where the default is too complicated).  So skip
+            // the test.
+            continue;
+        }
+        ReflectionHarness.test(function() {
+            domObj.setAttribute(domName, domTests[i]);
+            ReflectionHarness.assertEquals(domObj.getAttribute(domName),
+                String(domTests[i]), "getAttribute()");
+            ReflectionHarness.assertEquals(idlObj[idlName], domExpected[i],
+                "IDL get");
+        }, "setAttribute() to " + ReflectionHarness.stringRep(domTests[i]));
+    }
 
     for (var i = 0; i < idlTests.length; i++) {
-        if ((data.type == "limited long" && idlTests[i] < 0) ||
-            (data.type == "limited unsigned long" && idlTests[i] == 0)) {
-            ReflectionHarness.testException("INDEX_SIZE_ERR", function() {
+        ReflectionHarness.test(function() {
+            if ((data.type == "limited long" && idlTests[i] < 0) ||
+                (data.type == "limited unsigned long" && idlTests[i] == 0)) {
+                ReflectionHarness.assertThrows("IndexSizeError", function() {
+                    idlObj[idlName] = idlTests[i];
+                });
+            } else if (data.type == "limited double" && idlTests[i] <= 0) {
+                domObj.setAttribute(domName, "previous value");
+                var previousIdl = idlObj[idlName]; // should be the default value
                 idlObj[idlName] = idlTests[i];
-            }, "IDL set to " + ReflectionHarness.stringRep(idlTests[i]) + " must throw INDEX_SIZE_ERR");
-        } else {
-            ReflectionHarness.run(function() {
+                ReflectionHarness.assertEquals(domObj.getAttribute(domName),
+                                               "previous value", "getAttribute()");
+                ReflectionHarness.assertEquals(idlObj[idlName], previousIdl, "IDL get");
+            } else {
                 idlObj[idlName] = idlTests[i];
                 if (data.type == "boolean") {
                     // Special case yay
-                    ReflectionHarness.test(domObj.hasAttribute(domName), Boolean(idlTests[i]), "IDL set to " + ReflectionHarness.stringRep(idlTests[i]) + " followed by hasAttribute()");
+                    ReflectionHarness.assertEquals(domObj.hasAttribute(domName),
+                                                   Boolean(idlTests[i]), "hasAttribute()");
                 } else if (idlDomExpected[i] !== null || data.isNullable) {
                     var expected = idlDomExpected[i] + "";
                     if (data.isNullable && idlDomExpected[i] === null) {
                         expected = null;
                     }
-                    ReflectionHarness.test(domObj.getAttribute(domName), expected, "IDL set to " + ReflectionHarness.stringRep(idlTests[i]) + " followed by getAttribute()");
+                    ReflectionHarness.assertEquals(domObj.getAttribute(domName), expected,
+                                                   "getAttribute()");
                 }
                 if (idlIdlExpected[i] !== null || data.isNullable) {
-                    ReflectionHarness.test(idlObj[idlName], idlIdlExpected[i], "IDL set to " + ReflectionHarness.stringRep(idlTests[i]) + " followed by IDL get");
+                    ReflectionHarness.assertEquals(idlObj[idlName], idlIdlExpected[i], "IDL get");
                 }
-                if (ReflectionHarness.catchUnexpectedExceptions) {
-                    ReflectionHarness.success();
-                }
-            }, "IDL set to " + ReflectionHarness.stringRep(idlTests[i]) + " should not throw");
-        }
+            }
+        }, "IDL set to " + ReflectionHarness.stringRep(idlTests[i]));
     }
 };
+
+function toASCIILowerCase(str) {
+    return str.replace(/[A-Z]/g, function(m) { return m.toLowerCase(); });
+}
 
 /**
  * If we have an enumerated attribute limited to the array of values in
@@ -761,7 +1002,7 @@ ReflectionTests.doReflects = function(data, idlName, idlObj, domName, domObj) {
 ReflectionTests.enumExpected = function(keywords, nonCanon, invalidVal, contentVal) {
     var ret = invalidVal;
     for (var i = 0; i < keywords.length; i++) {
-        if (String(contentVal).toLowerCase() == keywords[i].toLowerCase()) {
+        if (toASCIILowerCase(String(contentVal)) === toASCIILowerCase(keywords[i])) {
             ret = keywords[i];
             break;
         }
@@ -793,13 +1034,13 @@ for (var element in elements) {
     ReflectionTests.reflects({type: "enum", keywords: ["ltr", "rtl", "auto"]}, "dir", element);
     ReflectionTests.reflects("string", "className", element, "class");
     ReflectionTests.reflects("tokenlist", "classList", element, "class");
+    ReflectionTests.reflects("boolean", "autofocus", element);
     ReflectionTests.reflects("boolean", "hidden", element);
     ReflectionTests.reflects("string", "accessKey", element);
     // Don't try to test the defaultVal -- it should be either 0 or -1, but the
     // rules are complicated, and a lot of them are SHOULDs.
     ReflectionTests.reflects({type: "long", defaultVal: null}, "tabIndex", element);
-    // TODO: classList, contextMenu, itemProp, itemRef, dropzone (require
-    // tokenlist support)
+    // TODO: classList, contextMenu, itemProp, itemRef
 
     for (var idlAttrName in elements[element]) {
         var type = elements[element][idlAttrName];

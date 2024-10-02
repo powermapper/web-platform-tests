@@ -12,8 +12,6 @@ http://www.w3.org/wiki/PointerEvents/TestAssertions
         <script>
             function run() {
                 var target1 = document.getElementById("target1");
-                var pointerover_event;
-                var ponterId = null;
 
                 var eventList = ['pointerenter', 'pointerover', 'pointermove', 'pointerout', 'pointerleave'];
 
@@ -24,7 +22,7 @@ http://www.w3.org/wiki/PointerEvents/TestAssertions
                             'type' : event.type,
                             'pointerType' : event.pointerType
                         };
-                        top.postMessage(JSON.stringify(pass_data), "*");
+                        top.postMessage(pass_data, "*");
                     });
                });
             }

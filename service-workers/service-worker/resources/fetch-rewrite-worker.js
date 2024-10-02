@@ -1,3 +1,11 @@
+// By default, this worker responds to fetch events with
+// respondWith(fetch(request)). Additionally, if the request has a &url
+// parameter, it fetches the provided URL instead. Because it forwards fetch
+// events to this other URL, it is called the "fetch rewrite" worker.
+//
+// The worker also looks for other params on the request to do more custom
+// behavior, like falling back to network or throwing an error.
+
 function get_query_params(url) {
   var search = (new URL(url)).search;
   if (!search) {
@@ -76,13 +84,18 @@ self.addEventListener('fetch', function(event) {
       } else {
         event.respondWith(new Response('NO_ACCEPT'));
       }
+      return;
     }
     event.respondWith(new Promise(function(resolve, reject) {
         var request = event.request;
         if (url) {
           request = new Request(url, init);
+        } else if (params['change-request']) {
+          request = new Request(request, init);
         }
-        fetch(request).then(function(response) {
+        const response_promise = params['navpreload'] ? event.preloadResponse
+                                                      : fetch(request);
+        response_promise.then(function(response) {
           var expectedType = params['expected_type'];
           if (expectedType && response.type !== expectedType) {
             // Resolve a JSON object with a failure instead of rejecting
@@ -124,6 +137,11 @@ self.addEventListener('fetch', function(event) {
             }
           }
 
+          if (params['clone']) {
+            response = response.clone();
+          }
+
+          // |cache| means to bounce responses through Cache Storage and back.
           if (params['cache']) {
             var cacheName = "cached-fetches-" + performance.now() + "-" +
                             event.request.url;

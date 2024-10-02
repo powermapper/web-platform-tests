@@ -1,13 +1,4 @@
 <!DOCTYPE html>
-<!--
-Distributed under both the W3C Test Suite License [1] and the W3C
-3-clause BSD License [2]. To contribute to a W3C Test Suite, see the
-policies and contribution forms [3].
-
-[1] http://www.w3.org/Consortium/Legal/2008/04-testsuite-license
-[2] http://www.w3.org/Consortium/Legal/2008/03-bsd-license
-[3] http://www.w3.org/2004/10/27-testcases
--->
 <html>
 <head>
 <title>Shadow DOM Test: A_04_01_09</title>
@@ -194,7 +185,7 @@ test(function () {
 test(function () {
     var ctx = A_04_01_09.setup();
 
-    assert_nodelist_contents_equal_noorder(ctx.d.querySelectorAll('div:last-child'), [ctx.d_div2], 'd.querySelectorAll(\'div:last-child\') return wrong result');
+    assert_nodelist_contents_equal_noorder(ctx.d.querySelectorAll('div:last-child'), [ctx.d_div1, ctx.d_div2], 'd.querySelectorAll(\'div:last-child\') return wrong result');
     assert_nodelist_contents_equal_noorder(ctx.s1.querySelectorAll('div:last-child'), [ctx.s1_div1, ctx.s1_div2], 's1.querySelectorAll(\'div:last-child\') return wrong result');
     assert_nodelist_contents_equal_noorder(ctx.s2.querySelectorAll('div:last-child'), [ctx.s2_div1, ctx.s2_div2], 's2.querySelectorAll(\'div:last-child\') return wrong result');
 

@@ -1,4 +1,5 @@
 #!/usr/bin/python
+
 import os, re, os.path, glob
 
 head = re.compile( r"^(\s*</head>)", re.MULTILINE )
@@ -8,7 +9,8 @@ scripts = '''
     <!-- Polyfill files (NOTE: These are added by auto-generation script) -->
     <script src=/encrypted-media/polyfill/chrome-polyfill.js></script>
     <script src=/encrypted-media/polyfill/firefox-polyfill.js></script>
-    <script src=/encrypted-media/polyfill/edge-polyfill.js></script>
+    <script src=/encrypted-media/polyfill/edge-persistent-usage-record.js></script>
+    <script src=/encrypted-media/polyfill/edge-keystatuses.js></script>
     <script src=/encrypted-media/polyfill/clearkey-polyfill.js></script>'''
 
 def process_file( infile, outfile ) :
@@ -18,7 +20,7 @@ def process_file( infile, outfile ) :
 
 if __name__ == '__main__' :
     if (not os.getcwd().endswith('polyfill')) :
-        print "Please run from polyfill directory"
+        print("Please run from polyfill directory")
         exit( 1 )
 
     for infile in glob.glob( "../*.html" ) :

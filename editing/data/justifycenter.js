@@ -1,3 +1,4 @@
+// For documentation of the format, see README in this directory.
 var browserTests = [
 ["foo[]bar<p>extra",
     [["stylewithcss","true"],["defaultparagraphseparator","div"],["justifycenter",""]],
@@ -1468,5 +1469,23 @@ var browserTests = [
     [["stylewithcss","false"],["defaultparagraphseparator","p"],["justifycenter",""]],
     "<center><p>foo</p></center><div style=\"text-align:center\"> <p>[bar]</p> </div><center><p>baz</p></center>",
     [true,true,true],
-    {"stylewithcss":[false,true,"",false,false,""],"defaultparagraphseparator":[false,false,"p",false,false,"p"],"justifycenter":[false,false,"left",false,true,"center"]}]
+    {"stylewithcss":[false,true,"",false,false,""],"defaultparagraphseparator":[false,false,"p",false,false,"p"],"justifycenter":[false,false,"left",false,true,"center"]}],
+["<div contenteditable=false align=center><p contenteditable>f[]oo</p></div>",
+    [],
+    ["<div contenteditable=\"false\" align=\"center\"><p contenteditable=\"\">foo</p></div>",
+     "<div align=\"center\" contenteditable=\"false\"><p contenteditable=\"\">foo</p></div>"],
+    [true],
+    {"justifyleft":[false,false,"center",false,false,"center"],
+     "justifycenter":[false,true,"center",false,true,"center"],
+     "justifyfull":[false,false,"center",false,false,"center"],
+     "justifyright":[false,false,"center",false,false,"center"]}],
+["<div contenteditable=false style=text-align:center><p contenteditable>f[]oo</p></div>",
+    [],
+    ["<div contenteditable=\"false\" style=\"text-align:center\"><p contenteditable=\"\">foo</p></div>",
+     "<div style=\"text-align:center\" contenteditable=\"false\"><p contenteditable=\"\">foo</p></div>"],
+    [true],
+    {"justifyleft":[false,false,"center",false,false,"center"],
+     "justifycenter":[false,true,"center",false,true,"center"],
+     "justifyfull":[false,false,"center",false,false,"center"],
+     "justifyright":[false,false,"center",false,false,"center"]}],
 ]

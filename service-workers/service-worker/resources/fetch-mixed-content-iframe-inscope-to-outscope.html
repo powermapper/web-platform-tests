@@ -1,4 +1,4 @@
-<script src="../resources/get-host-info.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
 <script src="test-helpers.sub.js?pipe=sub"></script>
 <script>
 var image_path = base_path() + 'fetch-access-control.py?PNGIMAGE';
@@ -67,7 +67,7 @@ function test5() {
     results += 'FAIL(5)';
     finish();
   };
-  img.src = './dummy?generate-png';
+  img.src = './sample?generate-png';
 }
 
 function finish() {

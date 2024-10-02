@@ -1,5 +1,6 @@
 var namespaces = {
   "html":"http://www.w3.org/1999/xhtml",
+  "math":"http://www.w3.org/1998/Math/MathML",
   "mathml":"http://www.w3.org/1998/Math/MathML",
   "svg":"http://www.w3.org/2000/svg",
   "xlink":"http://www.w3.org/1999/xlink",
@@ -94,6 +95,18 @@ function test_serializer(element) {
             lines.push(format("|%s%s=\"%s\"", indent_spaces, attr[0], attr[1]));
           }
         );
+        if ("HTMLTemplateElement" in window &&
+            Object.prototype.toString.call(element) === "[object HTMLTemplateElement]") {
+          indent += 2;
+          indent_spaces = (new Array(indent)).join(" ");
+          lines.push(format("|%scontent", indent_spaces));
+          indent += 2;
+          Array.prototype.forEach.call(element.content.childNodes,
+                                       function(node) {
+                                         serialize_element(node, indent);
+                                       });
+          indent -= 4;
+        }
         break;
     }
     indent += 2;
@@ -198,7 +211,12 @@ function test_fragment(iframe, t, test_id, uri_encoded_input, escaped_expected, 
      container_elem = document.createElement(container);
   }
   container_elem.innerHTML = input_string;
-  var serialized_dom = test_serializer(container_elem);
+  var serialized_dom;
+  if (container_elem.namespaceURI === namespaces["html"] && container_elem.localName === "template") {
+    serialized_dom = test_serializer(container_elem.content);
+  } else {
+    serialized_dom = test_serializer(container_elem);
+  }
   current_tests[iframe.id].actual = serialized_dom;
   serialized_dom = convert_innerHTML(serialized_dom);
   assert_equals(serialized_dom, expected);
@@ -207,6 +225,7 @@ function test_fragment(iframe, t, test_id, uri_encoded_input, escaped_expected, 
 
 function convert_innerHTML(serialized_dom) {
   var lines = serialized_dom.split("\n");
+  assert_not_equals(lines[0], "<template>", "template is never the innerHTML context object");
   lines[0] = "#document";
   return lines.join("\n");
 }
@@ -307,7 +326,7 @@ function init_tests(test_type) {
     var x = tests[test_id];
     var t = x[0];
     iframe_map[t.name] = iframe.id;
-    setTimeout(function() {
+    step_timeout(function() {
                  t.step(function() {
                    var string_uri_encoded_input = x[1];
                    var string_escaped_expected = x[2];

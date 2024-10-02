@@ -1,5 +1,5 @@
 
-function run_test() {
+function define_tests() {
     // May want to test prefixed implementations.
     var subtle = self.crypto.subtle;
 
@@ -27,7 +27,7 @@ function run_test() {
         "P-384": new Uint8Array([224, 189, 107, 206, 10, 239, 140, 164, 136, 56, 166, 226, 252, 197, 126, 103, 185, 197, 232, 134, 12, 95, 11, 233, 218, 190, 197, 62, 69, 78, 24, 160, 161, 116, 196, 136, 136, 162, 100, 136, 17, 91, 45, 201, 241, 223, 165, 45])
     };
 
-    importKeys(pkcs8, spki, sizes)
+    return importKeys(pkcs8, spki, sizes)
     .then(function(results) {
         publicKeys = results.publicKeys;
         privateKeys = results.privateKeys;
@@ -54,16 +54,6 @@ function run_test() {
                     assert_unreached("deriveBits failed with error " + err.name + ": " + err.message);
                 });
             }, namedCurve + " mixed case parameters");
-
-            // Null length
-            promise_test(function(test) {
-                return subtle.deriveBits({name: "ECDH", public: publicKeys[namedCurve]}, privateKeys[namedCurve], null)
-                .then(function(derivation) {
-                    assert_true(equalBuffers(derivation, derivations[namedCurve]), "Derived correct bits");
-                }, function(err) {
-                    assert_unreached("deriveBits failed with error " + err.name + ": " + err.message);
-                });
-            }, namedCurve + " with null length");
 
             // Shorter than entire derivation per algorithm
             promise_test(function(test) {
@@ -165,7 +155,7 @@ function run_test() {
             promise_test(function(test) {
                 return subtle.generateKey({name: "AES-CBC", length: 128}, true, ["encrypt", "decrypt"])
                 .then(function(secretKey) {
-                    subtle.deriveBits({name: "ECDH", public: secretKey}, privateKeys[namedCurve], 8 * sizes[namedCurve])
+                    return subtle.deriveBits({name: "ECDH", public: secretKey}, privateKeys[namedCurve], 8 * sizes[namedCurve])
                     .then(function(derivation) {
                         assert_unreached("deriveBits succeeded but should have failed with InvalidAccessError");
                     }, function(err) {
@@ -184,7 +174,6 @@ function run_test() {
                 });
             }, namedCurve + " asking for too many bits");
         });
-        done()
     });
 
     function importKeys(pkcs8, spki, sizes) {
@@ -200,6 +189,8 @@ function run_test() {
                                             false, ["deriveBits", "deriveKey"])
                             .then(function(key) {
                                 privateKeys[namedCurve] = key;
+                            }, function (err) {
+                                privateKeys[namedCurve] = null;
                             });
             promises.push(operation);
         });
@@ -209,6 +200,8 @@ function run_test() {
                                             false, ["deriveKey"])
                             .then(function(key) {
                                 noDeriveBitsKeys[namedCurve] = key;
+                            }, function (err) {
+                                noDeriveBitsKeys[namedCurve] = null;
                             });
             promises.push(operation);
         });
@@ -218,6 +211,8 @@ function run_test() {
                                             false, [])
                             .then(function(key) {
                                 publicKeys[namedCurve] = key;
+                            }, function (err) {
+                                publicKeys[namedCurve] = null;
                             });
             promises.push(operation);
         });
@@ -225,6 +220,8 @@ function run_test() {
             var operation = subtle.generateKey({name: "ECDSA", namedCurve: namedCurve}, false, ["sign", "verify"])
                             .then(function(keyPair) {
                                 ecdsaKeyPairs[namedCurve] = keyPair;
+                            }, function (err) {
+                                ecdsaKeyPairs[namedCurve] = null;
                             });
             promises.push(operation);
         });
